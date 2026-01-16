@@ -1,49 +1,43 @@
-"use client"
-
-import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
-import { analyticsAPI } from "@/services/api"
 
-export function ViolationTypeChart() {
-  const [data, setData] = useState([
-    { type: "PPE Violations", count: 185 },
-    { type: "Posture Issues", count: 98 },
-    { type: "Hazard Access", count: 59 },
-  ])
+export function ViolationTypeChart({ data }: { data: any }) {
+  const defaultData = [
+    { type: "Mask", count: 42 },
+    { type: "Gloves", count: 35 },
+    { type: "Goggles", count: 56 },
+    { type: "Coverall", count: 88 },
+    { type: "Face Shield", count: 62 },
+  ]
 
-  useEffect(() => {
-    analyticsAPI.getSummary().then((result: any) => {
-      if (result && result.missing) {
-        const formattedData = Object.entries(result.missing).map(([type, count]) => ({
-          type,
-          count: count as number,
-        }))
-        setData(formattedData.length > 0 ? formattedData : data)
-      }
-    })
-  }, [])
+  const chartData = data
+    ? Object.entries(data).map(([type, count]) => ({ type, count: count as number }))
+    : defaultData
 
   return (
-    <Card className="bg-card border-border">
-      <CardHeader>
-        <CardTitle>Violations by Type</CardTitle>
+    <Card className="bg-card border-border border-[#222]">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-bold flex items-center gap-2 uppercase tracking-tight text-muted-foreground">
+          Missing PPE by Type
+        </CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-            <XAxis dataKey="type" stroke="var(--muted-foreground)" />
-            <YAxis stroke="var(--muted-foreground)" />
+        <ResponsiveContainer width="100%" height={260}>
+          <BarChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
+            <XAxis dataKey="type" stroke="#555" fontSize={10} tickLine={false} axisLine={false} />
+            <YAxis stroke="#555" fontSize={10} tickLine={false} axisLine={false} />
             <Tooltip
               contentStyle={{
-                backgroundColor: "var(--card)",
-                border: "1px solid var(--border)",
+                backgroundColor: "#111",
+                border: "1px solid #333",
                 borderRadius: "0.5rem",
+                fontSize: "12px"
               }}
-              labelStyle={{ color: "var(--foreground)" }}
+              labelStyle={{ color: "#fff", fontWeight: "bold", marginBottom: "4px" }}
+              itemStyle={{ color: "var(--primary)" }}
             />
-            <Bar dataKey="count" fill="var(--primary)" radius={[8, 8, 0, 0]} />
+            <Bar dataKey="count" fill="var(--primary)" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

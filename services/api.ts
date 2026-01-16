@@ -227,6 +227,27 @@ function getMockData(endpoint: string): any {
     ]
   }
 
+  if (endpoint === "/api/videos/history") {
+    return {
+      history: [
+        {
+          filename: "processed_1705432000.webm",
+          url: "/processed_1705432000.webm",
+          timestamp: 1705432000,
+          violations: 12,
+          total_detections: 145,
+        },
+        {
+          filename: "processed_1705421000.mp4",
+          url: "/processed_1705421000.mp4",
+          timestamp: 1705421000,
+          violations: 3,
+          total_detections: 89,
+        }
+      ]
+    }
+  }
+
   return {}
 }
 
@@ -330,8 +351,20 @@ export const safetyMonitorAPI = {
     }
   },
 
+  getVideoHistory: (): Promise<{ history: VideoHistoryItem[] }> =>
+    apiRequest<{ history: VideoHistoryItem[] }>("/api/videos/history"),
+
   // Helper to get full static video URL
   getStaticVideoUrl: (relativePath: string): string => `${API_BASE_URL}${relativePath}`,
+}
+
+export interface VideoHistoryItem {
+  filename: string
+  url: string
+  thumbnail_url?: string
+  timestamp: number
+  violations: number
+  total_detections: number
 }
 
 // ============================================================================

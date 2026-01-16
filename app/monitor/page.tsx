@@ -9,6 +9,7 @@ import { VideoUpload } from "@/components/monitor/video-upload"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Video, Upload, Activity } from "lucide-react"
 import { safetyMonitorAPI } from "@/services/api"
+import { VideoHistory } from "@/components/monitor/video-history"
 
 export default function Monitor() {
   const [isMonitorActive, setIsMonitorActive] = useState(false)
@@ -41,12 +42,12 @@ export default function Monitor() {
               </p>
             </div>
             <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${isMonitorActive
-                ? "bg-accent/10 text-accent border border-accent/30"
-                : "bg-muted text-muted-foreground border border-border"
+              ? "bg-accent/10 text-accent border border-accent/30"
+              : "bg-muted text-muted-foreground border border-border"
               }`}>
               <span className={`h-2.5 w-2.5 rounded-full ${isMonitorActive
-                  ? "bg-accent animate-pulse"
-                  : "bg-muted-foreground"
+                ? "bg-accent animate-pulse"
+                : "bg-muted-foreground"
                 }`} />
               {isMonitorActive ? "System Active" : "System Standby"}
             </div>
@@ -139,6 +140,7 @@ export default function Monitor() {
           </Tabs>
         </div>
       </main>
+      <VideoHistory />
     </div>
   )
 }

@@ -172,27 +172,67 @@ async def search_logs(
         )
     return {"logs": logs}
 
-# New endpoint: analytics summary (counts per equipment)
+# New endpoint: analytics summary
 @app.get("/api/analytics/summary")
 async def analytics_summary(db: Session = Depends(get_db)):
-    # Simple aggregation: count detections per equipment type
-    from sqlalchemy import func, json_each
-    # Detected equipment counts
+    from sqlalchemy import func, json_each, cast, Date
+    
+    # 1. Equipment Counts
     detected_counts = (
         db.query(json_each.value, func.count())
         .select_from(Log, func.json_each(Log.detected))
-        .group_by(json_each.value)
-        .all()
+        .group_by(json_each.value).all()
     )
     missing_counts = (
         db.query(json_each.value, func.count())
         .select_from(Log, func.json_each(Log.missing))
-        .group_by(json_each.value)
+        .group_by(json_each.value).all()
+    )
+
+    # 2. Violation Trend (Daily)
+    # We count logs that have non-empty 'missing' list as violations
+    # Note: SQLite json_array_length or similar can be used if supported, 
+    # but let's do a simpler approach: count all logs per day for now, 
+    # or filter logs in memory if DB volume is small.
+    # For robust SQLite counting of JSON arrays:
+    violation_trend = (
+        db.query(cast(Log.timestamp, Date), func.count(Log.id))
+        .filter(func.json_array_length(Log.missing) > 0)
+        .group_by(cast(Log.timestamp, Date))
+        .order_by(cast(Log.timestamp, Date))
         .all()
     )
+
+    # 3. Compliance Score Trend (Daily)
+    # Score = (Total - Violations) / Total * 100
+    daily_stats = (
+        db.query(
+            cast(Log.timestamp, Date),
+            func.count(Log.id).label("total"),
+            func.sum(func.case((func.json_array_length(Log.missing) > 0, 1), else_=0)).label("violations")
+        )
+        .group_by(cast(Log.timestamp, Date))
+        .order_by(cast(Log.timestamp, Date))
+        .all()
+    )
+
+    # 4. Camera Performance
+    camera_stats = (
+        db.query(Log.source, func.count(Log.id))
+        .filter(func.json_array_length(Log.missing) > 0)
+        .group_by(Log.source)
+        .all()
+    )
+
     return {
         "detected": {item: cnt for item, cnt in detected_counts},
         "missing": {item: cnt for item, cnt in missing_counts},
+        "violationTrend": [{"date": str(d), "violations": c} for d, c in violation_trend],
+        "complianceTrend": [
+            {"date": str(d), "score": round(((t - v) / t) * 100, 1) if t > 0 else 100} 
+            for d, t, v in daily_stats
+        ],
+        "cameraPerformance": [{"camera": s, "violations": c} for s, c in camera_stats]
     }
 
 # Original Logs & Stats (kept for compatibility)
@@ -303,6 +343,8 @@ async def analyze_video(file: UploadFile = File(...)):
     results = []
     frame_count = 0
     
+    first_frame_thumb = None
+    
     # 3. Process Frame by Frame
     while cap.isOpened():
         ret, frame = cap.read()
@@ -313,6 +355,12 @@ async def analyze_video(file: UploadFile = File(...)):
         
         annotated_frame, data = monitor.process_frame(frame)
         
+        # Save first frame as thumbnail
+        if frame_count == 0:
+            thumb_filename = f"thumb_{output_filename}.jpg"
+            cv2.imwrite(f"{OUTPUT_DIR}/{thumb_filename}", annotated_frame)
+            first_frame_thumb = f"/static/{thumb_filename}"
+
         if data: results.extend(data)
         out.write(annotated_frame)
         frame_count += 1
@@ -324,7 +372,7 @@ async def analyze_video(file: UploadFile = File(...)):
     if results:
         try:
             with next(get_db()) as db:
-                save_logs(db, results, source=f"Video: {file.filename}")
+                save_logs(db, results, source=output_filename)
         except Exception as db_err:
             print(f"Database Save Error: {db_err}")
     
@@ -332,11 +380,45 @@ async def analyze_video(file: UploadFile = File(...)):
     monitor.set_active(was_active)
     
     return {
-        "status": "Complete", 
+        "status": "Success",
         "video_url": f"/static/{output_filename}",
+        "thumbnail_url": first_frame_thumb,
         "total_frames": frame_count,
-        "logs": results[:50]
+        "logs": results
     }
+
+@app.get("/api/videos/history")
+async def get_video_history(db: Session = Depends(get_db)):
+    from sqlalchemy import func
+    # 1. Get all processed files from static folder
+    files = [f for f in os.listdir(OUTPUT_DIR) if f.startswith("processed_") and (f.endswith(".webm") or f.endswith(".mp4"))]
+    files.sort(reverse=True)
+    
+    history = []
+    for filename in files:
+        # 2. Get violation count for this specific file from DB
+        violation_count = db.query(Log).filter(
+            Log.source == filename,
+            func.json_array_length(Log.missing) > 0
+        ).count()
+
+        total_detections = db.query(Log).filter(Log.source == filename).count()
+        
+        # Check if thumbnail exists
+        thumb_name = f"thumb_{filename}.jpg"
+        thumb_path = os.path.join(OUTPUT_DIR, thumb_name)
+        thumb_url = f"/static/{thumb_name}" if os.path.exists(thumb_path) else None
+        
+        history.append({
+            "filename": filename,
+            "url": f"/static/{filename}",
+            "thumbnail_url": thumb_url,
+            "timestamp": os.path.getmtime(os.path.join(OUTPUT_DIR, filename)),
+            "violations": violation_count,
+            "total_detections": total_detections
+        })
+    
+    return {"history": history}
 
 # --- HEALTH CHECK ---
 @app.get("/api/health")

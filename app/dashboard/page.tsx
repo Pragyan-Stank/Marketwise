@@ -20,9 +20,6 @@ export default function Dashboard() {
           {/* Stats Cards */}
           <StatsCards />
 
-          {/* Training Metrics Chart */}
-          <TrainingMetrics />
-
           {/* Main Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Violations Table */}

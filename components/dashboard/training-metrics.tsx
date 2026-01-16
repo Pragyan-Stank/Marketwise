@@ -141,22 +141,29 @@ export function TrainingMetrics() {
                 </div>
             </CardHeader>
             <CardContent>
-                <ResponsiveContainer width="50%" height={400}>
-                    <LineChart data={trainingData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                <ResponsiveContainer width="100%" height={320}>
+                    <LineChart data={trainingData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
                         <XAxis
                             dataKey="epoch"
-                            stroke="#888"
-                            label={{ value: 'Epoch', position: 'insideBottom', offset: -5, fill: '#888' }}
+                            stroke="#555"
+                            fontSize={10}
+                            tickLine={false}
+                            axisLine={false}
+                            label={{ value: 'Epoch', position: 'insideBottom', offset: -5, fill: '#555', fontSize: 10 }}
                         />
                         <YAxis
-                            stroke="#888"
-                            label={{ value: 'Loss / Recall Value', angle: -90, position: 'insideLeft', fill: '#888' }}
+                            stroke="#555"
+                            fontSize={10}
+                            tickLine={false}
+                            axisLine={false}
                             domain={[0, 1.2]}
                         />
                         <Tooltip content={<CustomTooltip />} />
                         <Legend
-                            wrapperStyle={{ paddingTop: '20px' }}
+                            wrapperStyle={{ paddingTop: '20px', fontSize: '10px' }}
+                            verticalAlign="top"
+                            align="right"
                         />
 
                         {/* Train Box Loss */}
