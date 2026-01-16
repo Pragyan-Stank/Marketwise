@@ -31,57 +31,64 @@ export default function Monitor() {
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar />
-      <main className="flex-1 overflow-auto">
-        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      <main className="flex-1 overflow-auto bg-[#0E0E0E]">
+        <div className="max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-10 space-y-8">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Safety Monitor</h1>
-              <p className="text-muted-foreground mt-2">
-                Real-time AI-powered safety compliance monitoring
+              <h1 className="text-4xl font-extrabold text-foreground tracking-tight">Live Monitor</h1>
+              <p className="text-muted-foreground mt-2 font-medium">
+                Real-time video feed monitoring with AI detection
               </p>
             </div>
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${isMonitorActive
-              ? "bg-accent/10 text-accent border border-accent/30"
-              : "bg-muted text-muted-foreground border border-border"
+            <div className={`flex items-center gap-6 px-6 py-2.5 rounded-2xl text-sm font-bold border transition-all shadow-lg ${isMonitorActive
+              ? "bg-accent/10 text-accent border-accent/20 shadow-accent/5"
+              : "bg-muted/10 text-muted-foreground border-border shadow-black/20"
               }`}>
-              <span className={`h-2.5 w-2.5 rounded-full ${isMonitorActive
-                ? "bg-accent animate-pulse"
-                : "bg-muted-foreground"
-                }`} />
-              {isMonitorActive ? "System Active" : "System Standby"}
+              <div className="flex items-center gap-2">
+                <span className={`h-2.5 w-2.5 rounded-full ${isMonitorActive
+                  ? "bg-accent animate-pulse"
+                  : "bg-muted-foreground"
+                  }`} />
+                {isMonitorActive ? "SYSTEM ACTIVE" : "SYSTEM STANDBY"}
+              </div>
+
+              <div className="h-4 w-[1px] bg-border" />
+
+              <button
+                onClick={async () => {
+                  const newState = !isMonitorActive;
+                  await safetyMonitorAPI.toggleMonitor(newState);
+                  setIsMonitorActive(newState);
+                }}
+                className={`flex items-center gap-2 px-3 py-1 rounded-lg transition-all ${isMonitorActive
+                    ? "bg-destructive/10 text-destructive hover:bg-destructive/20 border border-destructive/20"
+                    : "bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20"
+                  }`}
+              >
+                {isMonitorActive ? "Stop Monitor" : "Start Monitor"}
+              </button>
             </div>
           </div>
 
           {/* Tabs for Live/Upload modes */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="bg-muted/50 border border-border">
-              <TabsTrigger value="live" className="gap-2 data-[state=active]:bg-card">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+            <TabsList className="bg-muted/30 border border-border p-1 rounded-2xl">
+              <TabsTrigger value="live" className="gap-2 px-6 py-2 rounded-xl data-[state=active]:bg-card data-[state=active]:shadow-lg">
                 <Video className="w-4 h-4" />
-                Live Feed
+                Live Camera Grid
               </TabsTrigger>
-              <TabsTrigger value="upload" className="gap-2 data-[state=active]:bg-card">
+              <TabsTrigger value="upload" className="gap-2 px-6 py-2 rounded-xl data-[state=active]:bg-card data-[state=active]:shadow-lg">
                 <Upload className="w-4 h-4" />
-                Video Analysis
+                Offline Analytics
               </TabsTrigger>
             </TabsList>
 
             {/* Live Feed Tab */}
-            <TabsContent value="live" className="mt-0">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Live Video Feed */}
-                <div className="lg:col-span-2 space-y-6">
-                  <LiveFeed isMonitorActive={isMonitorActive} />
-                  <DetectionLogs isMonitorActive={isMonitorActive} />
-                </div>
-
-                {/* Controls Panel */}
-                <div className="space-y-6">
-                  <MonitoringControls
-                    isMonitorActive={isMonitorActive}
-                    onMonitorToggle={setIsMonitorActive}
-                  />
-                </div>
+            <TabsContent value="live" className="mt-0 outline-none">
+              <LiveFeed isMonitorActive={isMonitorActive} />
+              <div className="mt-8">
+                <DetectionLogs isMonitorActive={isMonitorActive} />
               </div>
             </TabsContent>
 

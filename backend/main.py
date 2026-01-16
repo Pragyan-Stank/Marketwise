@@ -11,43 +11,96 @@ import shutil
 from pydantic import BaseModel
 from safety_engine import SafetyMonitor
 
+# --- DATA MODELS ---
+class CameraConfig(BaseModel):
+    id: str | None = None
+    name: str
+    source: str # '0', '1', or URL
+    type: str # 'webcam' or 'ip'
+    zone: str = "General"
+
 # --- GLOBAL VARIABLES ---
-camera = None
 monitor = None
 OUTPUT_DIR = "static"
-
-# Ensure output directory exists for processed videos
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+ACTIVE_CAMERAS = {} # id -> cv2.VideoCapture
+CAMERA_METADATA = [] # List of CameraConfig
 
 # --- LIFESPAN MANAGER ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global monitor, camera
+    global monitor
     print("[INFO] Initializing Safety Monitor (GPU)...")
     monitor = SafetyMonitor()
-    monitor.set_active(True) # Force monitoring ON by default so feed shows immediately
+    monitor.set_active(True)
     
-    print("[INFO] Opening Camera...")
-    # Use cv2.CAP_DSHOW on Windows for faster/reliable access
-    camera = cv2.VideoCapture(0, cv2.CAP_DSHOW) 
-    if not camera.isOpened():
-        print("[WARNING] Camera 0 failed. Trying 1...")
-        camera = cv2.VideoCapture(1, cv2.CAP_DSHOW)
-
-    if camera.isOpened():
-        camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-        camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-        camera.set(cv2.CAP_PROP_FPS, 30)
-    else:
-        print("[ERROR] No camera found!")
-
+    # Initialize with default webcam if none exist
+    # (Actually let's wait for user to add)
+    
     yield
     
     print("[INFO] Shutdown cleanup...")
-    if camera and camera.isOpened():
-        camera.release()
+    for cam_id, cam in ACTIVE_CAMERAS.items():
+        cam.release()
+    ACTIVE_CAMERAS.clear()
 
 app = FastAPI(lifespan=lifespan)
+
+# --- CAMERA API ---
+@app.get("/api/cameras")
+async def list_cameras():
+    return CAMERA_METADATA
+
+@app.post("/api/cameras")
+async def add_camera(cam: CameraConfig):
+    import uuid
+    cam_id = str(uuid.uuid4())[:8]
+    cam.id = cam_id
+    
+    # Try to open source
+    try:
+        source = int(cam.source) if cam.source.isdigit() else cam.source
+        
+        # Helper to test connection
+        def try_source(s):
+            cap = cv2.VideoCapture(s)
+            if cap.isOpened():
+                # Read one frame to verify stream is actually sending data
+                ret, _ = cap.read()
+                if ret: return cap
+                cap.release()
+            return None
+
+        # Try 1: Original source
+        cap = try_source(source)
+        
+        # Try 2: If IP and failed, try common /video or /shot.jpg suffixes
+        if not cap and isinstance(source, str) and source.startswith("http"):
+            for suffix in ["/video", "/live", "/stream"]:
+                test_url = source.rstrip("/") + suffix
+                print(f"[INFO] Testing refined URL: {test_url}")
+                cap = try_source(test_url)
+                if cap:
+                    cam.source = test_url # Update to working URL
+                    break
+
+        if cap:
+            ACTIVE_CAMERAS[cam_id] = cap
+            CAMERA_METADATA.append(cam)
+            return {"status": "success", "camera": cam}
+        else:
+            return {"status": "error", "message": f"Could not connect to {cam.source}. Please check URL and network."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.delete("/api/cameras/{cam_id}")
+async def delete_camera(cam_id: str):
+    global CAMERA_METADATA
+    if cam_id in ACTIVE_CAMERAS:
+        ACTIVE_CAMERAS[cam_id].release()
+        del ACTIVE_CAMERAS[cam_id]
+        CAMERA_METADATA = [c for c in CAMERA_METADATA if c.id != cam_id]
+        return {"status": "success"}
+    return {"status": "error", "message": "Camera not found"}
 
 # --- CORS MIDDLEWARE (Required for Next.js frontend) ---
 app.add_middleware(
@@ -251,26 +304,33 @@ async def get_stats():
     return {"total_violations": violations, "compliance_rate": round(compliance, 1)}
 
 # --- LIVE STREAMING LOGIC --
-def generate_frames():
-    global camera
+def generate_frames(cam_id: str):
     while True:
         # 1. Check if camera is accessible
-        if camera is None or not camera.isOpened():
+        if cam_id not in ACTIVE_CAMERAS:
+            print(f"[ERROR] Camera {cam_id} not initialized")
+            break
+            
+        cap = ACTIVE_CAMERAS[cam_id]
+        success, frame = cap.read()
+        
+        if not success:
+            # Maybe it's an IP cam that disconnected?
             time.sleep(1)
             continue
 
-        # 2. Read Frame
-        success, frame = camera.read()
-        if not success:
-            time.sleep(0.1)
-            continue
-
         try:
-            # 3. Live Inference (Process the frame)
-            # Restore full resolution for clear detection
+            # Get metadata for source name
+            cam_name = "Camera"
+            for m in CAMERA_METADATA:
+                if m.id == cam_id:
+                    cam_name = m.name
+                    break
+
+            # 3. Live Inference
             annotated_frame, data = monitor.process_frame(frame)
             
-            # 4. Update Logs (Shared with UI & Database)
+            # 4. Update Logs 
             if data:
                 detection_logs.extend(data)
                 if len(detection_logs) > 50: detection_logs.pop(0)
@@ -278,28 +338,23 @@ def generate_frames():
                 # PERSIST TO DATABASE
                 try:
                     with next(get_db()) as db:
-                        save_logs(db, data, source="Live Camera")
+                        save_logs(db, data, source=cam_name)
                 except Exception as db_err:
-                    print(f"Database Save Error: {db_err}")
+                    print(f"Stats DB Error: {db_err}")
 
-            # 5. MODERN VISUALS: High-Quality Resize & Encode
-            preview = cv2.resize(annotated_frame, (1280, 720), interpolation=cv2.INTER_LINEAR)
-            
-            # Quality: 80% JPEG quality for HD clarity
-            ret, buffer = cv2.imencode('.jpg', preview, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+            # 5. Encode & Stream
+            ret, buffer = cv2.imencode('.jpg', annotated_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
             frame_bytes = buffer.tobytes()
-
-            # 6. Yield frame to browser
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
                    
         except Exception as e:
-            print(f"Stream Error: {e}")
-            time.sleep(0.1)
+            print(f"[STREAM ERROR] {e}")
+            break
 
-@app.get("/video_feed")
-async def video_feed():
-    return StreamingResponse(generate_frames(), media_type="multipart/x-mixed-replace; boundary=frame")
+@app.get("/video_feed/{cam_id}")
+async def video_feed(cam_id: str):
+    return StreamingResponse(generate_frames(cam_id), media_type="multipart/x-mixed-replace; boundary=frame")
 
 # --- RECORDED VIDEO PROCESSING ---
 @app.post("/analyze_video")

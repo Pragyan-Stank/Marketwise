@@ -268,9 +268,11 @@ export interface GearSettings {
 
 export interface DetectionLog {
   id: number
-  timestamp: string
-  status: "VIOLATION" | "COMPLIANT"
+  status: "SAFE" | "VIOLATION"
   missing: string[]
+  detected: string[]
+  timestamp: string
+  source: string
 }
 
 export interface StatsResponse {
@@ -327,7 +329,15 @@ export const safetyMonitorAPI = {
     apiRequest<StatsResponse>("/api/stats"),
 
   // --- Live Video Feed URL ---
-  getVideoFeedUrl: (): string => `${API_BASE_URL}/video_feed`,
+  // --- Live Video Feed URL ---
+  getVideoFeedUrl: (camId: string): string => `${API_BASE_URL}/video_feed/${camId}`,
+
+  // --- Multi-Camera API ---
+  getCameras: (): Promise<CameraConfig[]> => apiRequest<CameraConfig[]>("/api/cameras"),
+  addCamera: (config: CameraConfig): Promise<{ status: string, camera: CameraConfig }> =>
+    apiRequest<{ status: string, camera: CameraConfig }>("/api/cameras", { method: "POST", body: JSON.stringify(config) }),
+  deleteCamera: (id: string): Promise<{ status: string }> =>
+    apiRequest<{ status: string }>(`/api/cameras/${id}`, { method: "DELETE" }),
 
   // --- Video Upload & Analysis ---
   analyzeVideo: async (file: File): Promise<VideoAnalysisResult> => {
@@ -358,6 +368,14 @@ export const safetyMonitorAPI = {
   getStaticVideoUrl: (relativePath: string): string => `${API_BASE_URL}${relativePath}`,
 }
 
+export interface CameraConfig {
+  id?: string
+  name: string
+  source: string
+  type: 'webcam' | 'ip'
+  zone?: string
+}
+
 export interface VideoHistoryItem {
   filename: string
   url: string
@@ -383,13 +401,10 @@ export const dashboardAPI = {
 // MONITORING API
 // ============================================================================
 export const monitorAPI = {
-  getCameras: () => apiRequest("/api/monitor/cameras"),
-  getCamera: (id: string) => apiRequest(`/api/monitor/cameras/${id}`),
-  getStream: (cameraId: string) => apiRequest(`/api/monitor/stream/${cameraId}`),
-  getViolations: (cameraId: string, detectionType: string) =>
-    apiRequest(`/api/monitor/violations?camera=${cameraId}&type=${detectionType}`),
-  // Live feed access
-  getLiveFeedUrl: () => safetyMonitorAPI.getVideoFeedUrl(),
+  getCameras: () => safetyMonitorAPI.getCameras(),
+  addCamera: (config: CameraConfig) => safetyMonitorAPI.addCamera(config),
+  deleteCamera: (id: string) => safetyMonitorAPI.deleteCamera(id),
+  getLiveFeedUrl: (camId: string) => safetyMonitorAPI.getVideoFeedUrl(camId),
   getMonitorStatus: () => safetyMonitorAPI.getMonitorStatus(),
   toggleMonitor: (active: boolean) => safetyMonitorAPI.toggleMonitor(active),
 }
