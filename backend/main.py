@@ -357,8 +357,13 @@ async def video_feed(cam_id: str):
     return StreamingResponse(generate_frames(cam_id), media_type="multipart/x-mixed-replace; boundary=frame")
 
 # --- RECORDED VIDEO PROCESSING ---
+from fastapi import Form
 @app.post("/analyze_video")
-async def analyze_video(file: UploadFile = File(...)):
+async def analyze_video(
+    file: UploadFile = File(...),
+    start_time: float = Form(0.0),
+    end_time: float = Form(None)
+):
     # 1. Save Uploaded File
     temp_input = f"{OUTPUT_DIR}/temp_input.mp4"
     
@@ -370,9 +375,18 @@ async def analyze_video(file: UploadFile = File(...)):
     
     # 2. Setup Processing
     cap = cv2.VideoCapture(temp_input)
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    video_duration_ms = (total_frames / fps) * 1000 if fps > 0 else 0
+
+    # Seek to start time
+    start_ms = start_time * 1000
+    cap.set(cv2.CAP_PROP_POS_MSEC, start_ms)
+    
+    end_ms = end_time * 1000 if end_time is not None else video_duration_ms
+    
     # Force 720p for faster processing
     target_width, target_height = 1280, 720
-    fps = cap.get(cv2.CAP_PROP_FPS)
     
     # CHANGE: Use 'vp80' (VP8) - Faster & better compatibility than VP9
     try:
@@ -397,11 +411,14 @@ async def analyze_video(file: UploadFile = File(...)):
 
     results = []
     frame_count = 0
-    
     first_frame_thumb = None
     
     # 3. Process Frame by Frame
     while cap.isOpened():
+        current_ms = cap.get(cv2.CAP_PROP_POS_MSEC)
+        if current_ms > end_ms:
+            break
+
         ret, frame = cap.read()
         if not ret: break
         

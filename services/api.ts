@@ -340,9 +340,13 @@ export const safetyMonitorAPI = {
     apiRequest<{ status: string }>(`/api/cameras/${id}`, { method: "DELETE" }),
 
   // --- Video Upload & Analysis ---
-  analyzeVideo: async (file: File): Promise<VideoAnalysisResult> => {
+  analyzeVideo: async (file: File, startTime: number = 0, endTime?: number): Promise<VideoAnalysisResult> => {
     const formData = new FormData()
     formData.append("file", file)
+    formData.append("start_time", startTime.toString())
+    if (endTime !== undefined) {
+      formData.append("end_time", endTime.toString())
+    }
 
     try {
       const response = await fetch(`${API_BASE_URL}/analyze_video`, {
