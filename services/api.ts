@@ -166,7 +166,7 @@ function getMockData(endpoint: string): any {
   }
 
   if (endpoint === "/api/settings/gear") {
-    return { requirements: ["mask", "gloves", "coat", "glasses", "cap"] }
+    return { requirements: ["mask", "gloves", "coverall", "goggles", "face_shield"] }
   }
 
   if (endpoint === "/api/analytics/summary") {
@@ -175,8 +175,15 @@ function getMockData(endpoint: string): any {
       averageResponseTime: 2.3,
       systemUptime: 99.8,
       complianceScore: 87.5,
+      detected: { Mask: 124, Gloves: 98, Goggles: 76, Coverall: 45, "Face Shield": 30 },
+      missing: { Mask: 42, Gloves: 35, Goggles: 56, Coverall: 88, "Face Shield": 62 },
     }
   }
+
+  if (endpoint.includes("/api/logs/search")) {
+    return getMockData("/api/logs")
+  }
+
 
   if (endpoint === "/api/analytics/violations-trend") {
     return [
@@ -370,10 +377,15 @@ export const logsAPI = {
     const params = new URLSearchParams()
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
-        if (value) params.append(key, String(value))
+        if (value) {
+          // Map some UI filters to backend fields
+          if (key === "startDate") params.append("start", String(value))
+          else if (key === "endDate") params.append("end", String(value))
+          else params.append(key, String(value))
+        }
       })
     }
-    return apiRequest(`/api/logs?${params.toString()}`)
+    return apiRequest(`/api/logs/search?${params.toString()}`)
   },
   getLog: (id: string) => apiRequest(`/api/logs/${id}`),
   exportLogs: (format = "csv") => apiRequest(`/api/logs/export?format=${format}`),

@@ -199,6 +199,7 @@ class SafetyMonitor:
                     "id": int(person_id),
                     "timestamp": datetime.now().isoformat(),
                     "status": status,
+                    "detected": list(person_gear),
                     "missing": list(missing)
                 })
 

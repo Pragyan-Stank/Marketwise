@@ -13,8 +13,14 @@ export function ViolationTypeChart() {
   ])
 
   useEffect(() => {
-    analyticsAPI.getViolationsByType().then((result) => {
-      setData(result || data)
+    analyticsAPI.getSummary().then((result: any) => {
+      if (result && result.missing) {
+        const formattedData = Object.entries(result.missing).map(([type, count]) => ({
+          type,
+          count: count as number,
+        }))
+        setData(formattedData.length > 0 ? formattedData : data)
+      }
     })
   }, [])
 

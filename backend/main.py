@@ -124,7 +124,78 @@ async def get_gear_settings():
         return {"requirements": list(monitor.REQUIRED_GEAR)}
     return {"requirements": []}
 
-# 4. Logs & Stats
+from database import engine, Base, get_db
+from models import Log
+from log_service import save_logs
+from sqlalchemy.orm import Session
+from fastapi import Depends
+from datetime import datetime
+
+# Ensure tables exist
+Base.metadata.create_all(bind=engine)
+
+# New endpoint: search logs in DB
+@app.get("/api/logs/search")
+async def search_logs(
+    person_id: int | None = None,
+    start: str | None = None,
+    end: str | None = None,
+    equipment: str | None = None,
+    db: Session = Depends(get_db),
+):
+    query = db.query(Log)
+    if person_id is not None:
+        query = query.filter(Log.person_id == person_id)
+    if start:
+        query = query.filter(Log.timestamp >= datetime.fromisoformat(start))
+    if end:
+        query = query.filter(Log.timestamp <= datetime.fromisoformat(end))
+    if equipment:
+        # search in detected or missing JSON arrays
+        query = query.filter(
+            Log.detected.contains([equipment]) | Log.missing.contains([equipment])
+        )
+    results = query.order_by(Log.timestamp.desc()).limit(200).all()
+    # Convert to serializable dicts
+    logs = []
+    for r in results:
+        logs.append(
+            {
+                "id": r.id,
+                "person_id": r.person_id,
+                "timestamp": r.timestamp.isoformat(),
+                "detected": r.detected,
+                "missing": r.missing,
+                "source": r.source,
+                "confidence": r.confidence,
+            }
+        )
+    return {"logs": logs}
+
+# New endpoint: analytics summary (counts per equipment)
+@app.get("/api/analytics/summary")
+async def analytics_summary(db: Session = Depends(get_db)):
+    # Simple aggregation: count detections per equipment type
+    from sqlalchemy import func, json_each
+    # Detected equipment counts
+    detected_counts = (
+        db.query(json_each.value, func.count())
+        .select_from(Log, func.json_each(Log.detected))
+        .group_by(json_each.value)
+        .all()
+    )
+    missing_counts = (
+        db.query(json_each.value, func.count())
+        .select_from(Log, func.json_each(Log.missing))
+        .group_by(json_each.value)
+        .all()
+    )
+    return {
+        "detected": {item: cnt for item, cnt in detected_counts},
+        "missing": {item: cnt for item, cnt in missing_counts},
+    }
+
+# Original Logs & Stats (kept for compatibility)
 @app.get("/api/logs")
 async def get_logs():
     return {"logs": detection_logs[::-1]}
@@ -156,21 +227,25 @@ def generate_frames():
 
         try:
             # 3. Live Inference (Process the frame)
-            # This frame is usually 1280x720 or 1920x1080 depending on the webcam
+            # Restore full resolution for clear detection
             annotated_frame, data = monitor.process_frame(frame)
             
-            # 4. Update Logs (Shared with UI)
+            # 4. Update Logs (Shared with UI & Database)
             if data:
                 detection_logs.extend(data)
                 if len(detection_logs) > 50: detection_logs.pop(0)
+                
+                # PERSIST TO DATABASE
+                try:
+                    with next(get_db()) as db:
+                        save_logs(db, data, source="Live Camera")
+                except Exception as db_err:
+                    print(f"Database Save Error: {db_err}")
 
             # 5. MODERN VISUALS: High-Quality Resize & Encode
-            
-            # Resolution: 1280x720 (720p) is standard HD.
-            # Interpolation: cv2.INTER_LINEAR is smoother than default NEAREST.
             preview = cv2.resize(annotated_frame, (1280, 720), interpolation=cv2.INTER_LINEAR)
             
-            # Quality: 80% JPEG quality removes compression artifacts/blur
+            # Quality: 80% JPEG quality for HD clarity
             ret, buffer = cv2.imencode('.jpg', preview, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
             frame_bytes = buffer.tobytes()
 
@@ -244,6 +319,14 @@ async def analyze_video(file: UploadFile = File(...)):
 
     cap.release()
     out.release()
+    
+    # PERSIST RESULTS TO DATABASE
+    if results:
+        try:
+            with next(get_db()) as db:
+                save_logs(db, results, source=f"Video: {file.filename}")
+        except Exception as db_err:
+            print(f"Database Save Error: {db_err}")
     
     # Restore monitor state
     monitor.set_active(was_active)
