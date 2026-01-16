@@ -13,19 +13,19 @@ export function ViolationPanel({ selectedCamera, detectionMode }: ViolationPanel
   const violations =
     detectionMode === "ppe"
       ? [
-          { type: "Missing Hard Hat", confidence: "98.5%", timestamp: "2 seconds ago" },
-          { type: "No Safety Vest", confidence: "95.2%", timestamp: "15 seconds ago" },
-          { type: "Missing Gloves", confidence: "92.1%", timestamp: "32 seconds ago" },
-        ]
+        { type: "Missing Face Shield", confidence: "98.5%", timestamp: "2 seconds ago" },
+        { type: "Missing Coverall", confidence: "95.2%", timestamp: "15 seconds ago" },
+        { type: "Missing Gloves", confidence: "92.1%", timestamp: "32 seconds ago" },
+      ]
       : detectionMode === "posture"
         ? [
-            { type: "Unsafe Bending", confidence: "87.3%", timestamp: "5 seconds ago" },
-            { type: "Unstable Standing", confidence: "84.9%", timestamp: "18 seconds ago" },
-          ]
+          { type: "Unsafe Bending", confidence: "87.3%", timestamp: "5 seconds ago" },
+          { type: "Unstable Standing", confidence: "84.9%", timestamp: "18 seconds ago" },
+        ]
         : [
-            { type: "Hazardous Material", confidence: "96.4%", timestamp: "3 seconds ago" },
-            { type: "Obstruction Detected", confidence: "91.2%", timestamp: "12 seconds ago" },
-          ]
+          { type: "Hazardous Material", confidence: "96.4%", timestamp: "3 seconds ago" },
+          { type: "Obstruction Detected", confidence: "91.2%", timestamp: "12 seconds ago" },
+        ]
 
   return (
     <div className="space-y-4">
@@ -53,10 +53,11 @@ export function ViolationPanel({ selectedCamera, detectionMode }: ViolationPanel
         <PPEChecklist
           personId="Worker #001"
           ppeStatus={{
-            helmet: false,
-            shoes: true,
-            goggles: false,
             mask: true,
+            gloves: false,
+            coverall: true,
+            goggles: false,
+            face_shield: false,
           }}
           confidence={0.94}
         />

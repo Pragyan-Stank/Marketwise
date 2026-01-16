@@ -33,21 +33,23 @@ class SafetyMonitor:
         
         # INTERNAL SENSITIVITY OVERRIDES
         self.CLASS_SPECIFIC_THRESHOLDS = {
-            'N95 mask': 0.30,
-            'surgical mask': 0.70,
-            'hand gloves': 0.45,
-            'lab coat': None,
-            'protective eye glasses': 0.65,
-            'protective head cap': 0.1
+            'Coverall': 0.50,
+            'Face_Shield': 0.50,
+            'Gloves': 0.45,
+            'Goggles': 0.50,
+            'Mask': 0.30
         }
 
         self.EQUIPMENT_CLASSES = {
-            0: 'N95 mask', 1: 'surgical mask', 2: 'hand gloves', 
-            3: 'lab coat', 4: 'protective eye glasses', 5: 'protective head cap'
+            0: 'Coverall', 
+            1: 'Face_Shield', 
+            2: 'Gloves', 
+            3: 'Goggles', 
+            4: 'Mask'
         }
         
         # Default: All gear is required
-        self.REQUIRED_GEAR = {'mask', 'gloves', 'coat', 'glasses', 'cap'}
+        self.REQUIRED_GEAR = {'mask', 'gloves', 'coverall', 'goggles', 'face_shield'}
 
         # Optimization vars
         self.frame_count = 0
@@ -80,11 +82,11 @@ class SafetyMonitor:
     def check_keypoint_association(self, equip_box, keypoints, equip_type):
         x1, y1, x2, y2 = equip_box
         relevant_kps = []
-        if 'mask' in equip_type: relevant_kps = [0, 3, 4]
-        elif 'glasses' in equip_type: relevant_kps = [1, 2]
-        elif 'cap' in equip_type: relevant_kps = [0, 1, 2]
-        elif 'gloves' in equip_type: relevant_kps = [9, 10]
-        elif 'coat' in equip_type: relevant_kps = [5, 6, 11, 12]
+        if 'mask' in equip_type: relevant_kps = [0, 3, 4] # Nose, ears
+        elif 'goggles' in equip_type: relevant_kps = [1, 2] # Eyes
+        elif 'face_shield' in equip_type: relevant_kps = [0, 1, 2] # Nose, eyes
+        elif 'gloves' in equip_type: relevant_kps = [9, 10] # Wrists
+        elif 'coverall' in equip_type: relevant_kps = [5, 6, 11, 12] # Shoulders, hips
 
         for kp_idx in relevant_kps:
             if kp_idx < len(keypoints):
@@ -177,7 +179,7 @@ class SafetyMonitor:
                     e_bbox = equip['bbox']
                     e_name = equip['class']
                     # Normalize names
-                    simple_name = next((k for k in ['mask', 'gloves', 'coat', 'glasses', 'cap'] if k in e_name), None)
+                    simple_name = next((k for k in ['mask', 'gloves', 'coverall', 'goggles', 'face_shield'] if k in e_name.lower()), None)
 
                     if simple_name:
                         if self.is_overlapping(bbox, e_bbox):

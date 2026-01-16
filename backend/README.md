@@ -69,20 +69,19 @@ The API will be available at `http://localhost:8000`
 
 ### Detected PPE Classes
 The model detects the following equipment:
-- N95 Mask
-- Surgical Mask
-- Hand Gloves
-- Lab Coat
-- Protective Eye Glasses
-- Protective Head Cap
+- Coverall
+- Face Shield
+- Gloves
+- Goggles
+- Mask
 
 ### Required Gear (Configurable via API)
 Default required gear IDs:
-- `mask` - Face mask (N95 or Surgical)
-- `gloves` - Hand gloves
-- `coat` - Lab coat
-- `glasses` - Eye protection
-- `cap` - Head cap
+- `mask` - Face Mask
+- `gloves` - Hand Gloves
+- `coverall` - Safety Coverall
+- `goggles` - Safety Goggles
+- `face_shield` - Face Shield
 
 ## 📁 Folder Structure
 

@@ -4,10 +4,11 @@ import { Card } from "@/components/ui/card"
 import { Check, X } from "lucide-react"
 
 interface PPEStatus {
-  helmet: boolean
-  shoes: boolean
-  goggles: boolean
   mask: boolean
+  gloves: boolean
+  coverall: boolean
+  goggles: boolean
+  face_shield: boolean
 }
 
 interface PPEChecklistProps {
@@ -17,10 +18,11 @@ interface PPEChecklistProps {
 }
 
 const PPE_ITEMS = [
-  { key: "helmet", label: "Hard Hat", icon: "🪖" },
-  { key: "shoes", label: "Safety Shoes", icon: "👞" },
-  { key: "goggles", label: "Safety Goggles", icon: "🥽" },
-  { key: "mask", label: "Face Mask", icon: "😷" },
+  { key: "mask", label: "Mask", icon: "😷" },
+  { key: "gloves", label: "Gloves", icon: "🧤" },
+  { key: "coverall", label: "Coverall", icon: "🧥" },
+  { key: "goggles", label: "Goggles", icon: "🥽" },
+  { key: "face_shield", label: "Face Shield", icon: "🛡️" },
 ]
 
 export function PPEChecklist({ personId, ppeStatus, confidence }: PPEChecklistProps) {
@@ -48,9 +50,8 @@ export function PPEChecklist({ personId, ppeStatus, confidence }: PPEChecklistPr
           return (
             <div
               key={item.key}
-              className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${
-                isComplete ? "bg-accent/10 border border-accent/20" : "bg-primary/10 border border-primary/20"
-              }`}
+              className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${isComplete ? "bg-accent/10 border border-accent/20" : "bg-primary/10 border border-primary/20"
+                }`}
             >
               <div className="text-lg">{item.icon}</div>
               <span className="flex-1 text-sm text-foreground">{item.label}</span>

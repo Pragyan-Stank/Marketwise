@@ -24,9 +24,9 @@ import { safetyMonitorAPI, settingsAPI } from "@/services/api"
 const GEAR_ITEMS = [
     { id: "mask", label: "Face Mask", icon: Shield, description: "N95/Surgical Mask" },
     { id: "gloves", label: "Hand Gloves", icon: Hand, description: "Protective Gloves" },
-    { id: "coat", label: "Lab Coat", icon: Shirt, description: "Protective Coat" },
-    { id: "glasses", label: "Eye Protection", icon: Glasses, description: "Safety Glasses" },
-    { id: "cap", label: "Head Cap", icon: HardHat, description: "Protective Cap" },
+    { id: "coverall", label: "Safety Coverall", icon: Shirt, description: "Full Body Coverall" },
+    { id: "goggles", label: "Safety Goggles", icon: Glasses, description: "Protective Goggles" },
+    { id: "face_shield", label: "Face Shield", icon: HardHat, description: "Full Face Shield" },
 ]
 
 interface MonitoringControlsProps {
@@ -36,7 +36,7 @@ interface MonitoringControlsProps {
 
 export function MonitoringControls({ isMonitorActive, onMonitorToggle }: MonitoringControlsProps) {
     const [sensitivity, setSensitivity] = useState(0.50)
-    const [activeGear, setActiveGear] = useState<string[]>(["mask", "gloves", "coat", "glasses", "cap"])
+    const [activeGear, setActiveGear] = useState<string[]>(["mask", "gloves", "coverall", "goggles", "face_shield"])
     const [isLoading, setIsLoading] = useState(true)
     const [isSaving, setIsSaving] = useState(false)
     const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle")
@@ -137,8 +137,8 @@ export function MonitoringControls({ isMonitorActive, onMonitorToggle }: Monitor
         <div className="space-y-4">
             {/* Monitoring Toggle */}
             <Card className={`border-2 transition-colors ${isMonitorActive
-                    ? "bg-accent/5 border-accent/30"
-                    : "bg-card border-border"
+                ? "bg-accent/5 border-accent/30"
+                : "bg-card border-border"
                 }`}>
                 <CardContent className="p-4">
                     <div className="flex items-center justify-between">
@@ -219,8 +219,8 @@ export function MonitoringControls({ isMonitorActive, onMonitorToggle }: Monitor
                                     onClick={() => handleGearToggle(gear.id)}
                                     disabled={isSaving}
                                     className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${isActive
-                                            ? "bg-accent/10 border border-accent/30 hover:bg-accent/20"
-                                            : "bg-muted/30 border border-transparent hover:bg-muted/50"
+                                        ? "bg-accent/10 border border-accent/30 hover:bg-accent/20"
+                                        : "bg-muted/30 border border-transparent hover:bg-muted/50"
                                         }`}
                                 >
                                     <div className={`p-1.5 rounded ${isActive ? "bg-accent/20" : "bg-muted"
@@ -236,8 +236,8 @@ export function MonitoringControls({ isMonitorActive, onMonitorToggle }: Monitor
                                         <p className="text-xs text-muted-foreground">{gear.description}</p>
                                     </div>
                                     <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isActive
-                                            ? "border-accent bg-accent"
-                                            : "border-muted-foreground/30"
+                                        ? "border-accent bg-accent"
+                                        : "border-muted-foreground/30"
                                         }`}>
                                         {isActive && (
                                             <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
