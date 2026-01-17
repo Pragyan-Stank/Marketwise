@@ -1,5 +1,3 @@
-﻿# Marketwise
-
 # Marketwise: AI-Powered Safety Compliance System
 
 **Marketwise** is an intelligent workplace safety monitoring solution designed to automate the detection of Personal Protective Equipment (PPE) compliance. By leveraging advanced Computer Vision (YOLOv8) and real-time video analytics, it helps organizations maintain safety standards, track violations, and generate actionable insights.
@@ -9,12 +7,32 @@
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![YOLOv8](https://img.shields.io/badge/AI-YOLOv8s-magenta)
 
+## 📸 Project Gallery
+
+### Landing Page
+> The entry point for the Marketwise platform.
+![Landing Page](./public/Screenshot%202026-01-17%20122008.png)
+
+### Operations Dashboard
+> Comprehensive view of safety compliance scores, active cameras, and violation trends.
+![Dashboard](./public/Screenshot%202026-01-17%20122026.png)
+
+### Real-Time Monitoring
+> Live inference feed detecting PPE (Helmets/Vests) with low-latency bounding boxes.
+![Live Streaming](./public/Screenshot%202026-01-17%20122130.png)
+
+### Processed Recordings & History
+> Review historical footage and detected violation snapshots.
+![Processed Recordings](./public/Screenshot%202026-01-17%20122142.png)
+
+---
+
 ## 🚀 Key Features
 
 * **Real-Time Monitoring:** Live video feed processing with bounding box overlays for safety gear detection.
 * **Smart Detection:** Automatically identifies PPE compliance (Helmets, Vests) and potential violations.
 * **Analytics Dashboard:** Visualizes compliance scores, violation trends, and camera performance metrics.
-* **Video Management:** Tools to upload, trim (`video-trimmer`), and analyze historical footage from Pexels or local sources.
+* **Video Management:** Tools to upload, trim, and analyze historical footage from Pexels or local sources.
 * **Audit Logs:** Searchable database of detected incidents with snapshots.
 
 ## 🧠 Model Training & Performance
@@ -62,4 +80,4 @@ Marketwise/
 │   ├── analytics/        # Charts (Compliance Score, Trends)
 │   ├── monitor/          # Video Players & PPE Checklists
 │   └── logs/             # Data Tables
-└── public/               # Static Assets
+└── public/               # Static Assets & Screenshots
