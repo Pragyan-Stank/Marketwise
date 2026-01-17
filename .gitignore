@@ -2,7 +2,7 @@
 
 # dependencies
 /node_modules
-/static
+/static/
 
 # next.js
 /.next/

@@ -2,9 +2,9 @@
 
 import type React from "react"
 import { useEffect, useState } from "react"
-import { AlertCircle, Eye, TrendingUp, Clock } from "lucide-react"
+import { AlertCircle, Eye, TrendingUp, Activity } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { dashboardAPI, safetyMonitorAPI } from "@/services/api"
+import { dashboardAPI, safetyMonitorAPI, monitorAPI } from "@/services/api"
 
 interface StatCardProps {
   icon: React.ReactNode
@@ -45,27 +45,29 @@ function StatCard({ icon, label, value, change, changeType = "neutral", loading 
 export function StatsCards() {
   const [stats, setStats] = useState({
     activeViolations: 0,
-    camerasOnline: "1/1",
+    camerasOnline: "0/0",
     complianceScore: "100%",
-    averageResponseTime: "45ms",
+    totalProcessed: 0,
   })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Fetch from both dashboard summary and backend stats
+    // Fetch from all necessary endpoints
     Promise.all([
-      dashboardAPI.getSummary(),
       safetyMonitorAPI.getStats(),
-    ]).then(([summaryData, backendStats]) => {
-      const summary = summaryData as { activeViolations?: number; complianceScore?: number }
+      monitorAPI.getCameras(),
+      safetyMonitorAPI.getLogs()
+    ]).then(([backendStats, cameras, logsData]) => {
+      const activeCams = cameras.length
       setStats({
-        activeViolations: backendStats.total_violations || summary.activeViolations || 0,
-        camerasOnline: "1/1", // Single camera from backend
-        complianceScore: `${backendStats.compliance_rate || summary.complianceScore || 100}%`,
-        averageResponseTime: "45ms", // Typical inference time
+        activeViolations: backendStats.total_violations || 0,
+        camerasOnline: `${activeCams}/${activeCams}`,
+        complianceScore: `${backendStats.compliance_rate || 100}%`,
+        totalProcessed: logsData.logs?.length || 0,
       })
       setLoading(false)
-    }).catch(() => {
+    }).catch((err) => {
+      console.error("Stats fetch error:", err)
       setLoading(false)
     })
   }, [])
@@ -94,10 +96,10 @@ export function StatsCards() {
         changeType="positive"
       />
       <StatCard
-        icon={<Clock className="w-5 h-5" />}
-        label="Avg Response Time"
-        value={stats.averageResponseTime}
-        change="-0.4s from average"
+        icon={<Activity className="w-5 h-5" />}
+        label="Recent Detections"
+        value={stats.totalProcessed}
+        change="Across all cameras"
         changeType="positive"
       />
     </div>

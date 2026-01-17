@@ -6,7 +6,7 @@ import torch
 import os
 
 class SafetyMonitor:
-    def __init__(self, pose_model_path='yolov8n-pose.pt', obj_model_path=r'C:\Users\Pragyan\Downloads\safety-compliance-dashboard\backend\bests-90epoch.pt'):
+    def __init__(self, pose_model_path='yolov8n-pose.pt', obj_model_path=r'C:\Users\Pragyan\Downloads\safety-compliance-dashboard\backend\bests-150epoch-pro.pt'):
         # Check for GPU
         self.device = '0' if torch.cuda.is_available() else 'cpu'
         print(f"🚀 Loading models on {self.device}...")
@@ -33,9 +33,9 @@ class SafetyMonitor:
         
         # INTERNAL SENSITIVITY OVERRIDES
         self.CLASS_SPECIFIC_THRESHOLDS = {
-            'Coverall': 0.50,
-            'Face_Shield': 0.50,
-            'Gloves': 0.45,
+            'Coverall': 0.2,
+            'Face_Shield': 0.6,
+            'Gloves': 0.4,
             'Goggles': 0.50,
             'Mask': 0.30
         }
@@ -208,9 +208,9 @@ class SafetyMonitor:
     def draw_visuals(self, frame, visuals):
         # Modern Font Settings
         font = cv2.FONT_HERSHEY_DUPLEX # Slightly cleaner than SIMPLEX
-        font_scale = 0.5               # Smaller, cleaner text
+        font_scale = 0.7             # Smaller, cleaner text
         font_thickness = 1             # Thin text font
-        box_thickness = 2              # Thinner bounding box lines
+        box_thickness = 1.5            # Thinner bounding box lines
 
         for item in visuals:
             x1, y1, x2, y2 = map(int, item['coords'])

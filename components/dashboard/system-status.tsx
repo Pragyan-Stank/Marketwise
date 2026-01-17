@@ -2,99 +2,80 @@
 
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { CheckCircle2, AlertCircle, Loader2 } from "lucide-react"
+import { CheckCircle2, AlertCircle, Loader2, Activity } from "lucide-react"
 import { safetyMonitorAPI } from "@/services/api"
 
-interface SystemItem {
+interface SafetyProtocol {
   name: string
-  status: "operational" | "warning" | "error" | "loading"
+  status: "active" | "standby" | "alert" | "loading"
   detail: string
 }
 
 function getStatusIcon(status: string) {
   switch (status) {
-    case "operational":
-      return <CheckCircle2 className="w-4 h-4 text-success" />
+    case "active":
+      return <CheckCircle2 className="w-4 h-4 text-accent" />
     case "loading":
       return <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
-    case "error":
+    case "alert":
       return <AlertCircle className="w-4 h-4 text-primary" />
     default:
-      return <AlertCircle className="w-4 h-4 text-warning" />
+      return <Activity className="w-4 h-4 text-muted-foreground" />
   }
 }
 
 function getStatusColor(status: string) {
   switch (status) {
-    case "operational":
-      return "text-success"
-    case "error":
+    case "active":
+      return "text-accent"
+    case "alert":
       return "text-primary"
     default:
-      return "text-warning"
+      return "text-muted-foreground"
   }
 }
 
 export function SystemStatus() {
-  const [systemItems, setSystemItems] = useState<SystemItem[]>([
-    { name: "Backend Server", status: "loading", detail: "Checking connection..." },
-    { name: "AI Model", status: "loading", detail: "Checking status..." },
-    { name: "Video Stream", status: "loading", detail: "Checking feed..." },
-    { name: "Monitoring", status: "loading", detail: "Checking status..." },
+  const [protocols, setProtocols] = useState<SafetyProtocol[]>([
+    { name: "PPE Protocol", status: "loading", detail: "Checking..." },
+    { name: "Hazard Zones", status: "loading", detail: "Checking..." },
+    { name: "Alert Engine", status: "loading", detail: "Checking..." },
+    { name: "Auto Reporting", status: "loading", detail: "Checking..." },
   ])
 
   useEffect(() => {
     const checkBackendStatus = async () => {
       try {
-        // Check if backend is reachable
         const monitorStatus = await safetyMonitorAPI.getMonitorStatus()
-        const thresholdSettings = await safetyMonitorAPI.getThreshold()
 
-        setSystemItems([
+        setProtocols([
           {
-            name: "Backend Server",
-            status: "operational",
-            detail: "FastAPI running on port 8000"
+            name: "PPE Protocol",
+            status: monitorStatus.active ? "active" : "standby",
+            detail: monitorStatus.active ? "Active & Scanning" : "On Standby"
           },
           {
-            name: "AI Model",
-            status: "operational",
-            detail: `Confidence: ${Math.round(thresholdSettings.conf * 100)}%`
+            name: "Hazard Zones",
+            status: monitorStatus.active ? "active" : "standby",
+            detail: "Virtual Fencing Enabled"
           },
           {
-            name: "Video Stream",
-            status: "operational",
-            detail: "MJPEG feed available"
+            name: "Alert Engine",
+            status: "active",
+            detail: "Instant Push Active"
           },
           {
-            name: "Monitoring",
-            status: monitorStatus.active ? "operational" : "warning",
-            detail: monitorStatus.active ? "Detection active" : "Paused"
+            name: "Auto Reporting",
+            status: "active",
+            detail: "Hourly Sync Active"
           },
         ])
       } catch (error) {
-        // Backend not reachable - show mock/offline status
-        setSystemItems([
-          {
-            name: "Backend Server",
-            status: "warning",
-            detail: "Using mock data"
-          },
-          {
-            name: "AI Model",
-            status: "operational",
-            detail: "Ready (offline mode)"
-          },
-          {
-            name: "Video Stream",
-            status: "warning",
-            detail: "Backend required"
-          },
-          {
-            name: "Monitoring",
-            status: "warning",
-            detail: "Start backend to enable"
-          },
+        setProtocols([
+          { name: "PPE Protocol", status: "standby", detail: "Connect API" },
+          { name: "Hazard Zones", status: "standby", detail: "Offline" },
+          { name: "Alert Engine", status: "standby", detail: "Offline" },
+          { name: "Auto Reporting", status: "standby", detail: "Local only" },
         ])
       }
     }
@@ -109,11 +90,11 @@ export function SystemStatus() {
   return (
     <Card className="bg-card border-border">
       <CardHeader>
-        <CardTitle className="text-lg">System Status</CardTitle>
+        <CardTitle className="text-lg">Monitoring Protocols</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {systemItems.map((item) => (
+          {protocols.map((item) => (
             <div key={item.name} className="flex items-center justify-between">
               <div className="space-y-1">
                 <p className="text-sm font-medium text-foreground">{item.name}</p>

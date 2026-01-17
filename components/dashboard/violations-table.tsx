@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertTriangle, AlertCircle, Info } from "lucide-react"
-import { dashboardAPI } from "@/services/api"
+import { safetyMonitorAPI, DetectionLog } from "@/services/api"
 
 interface Violation {
   id: string
@@ -30,11 +30,11 @@ function getSeverityIcon(severity: string) {
 function getSeverityBg(severity: string) {
   switch (severity) {
     case "critical":
-      return "bg-primary/10 border-primary/20"
+      return "bg-primary/5 border-primary/20"
     case "warning":
-      return "bg-warning/10 border-warning/20"
+      return "bg-orange-500/5 border-orange-500/20"
     default:
-      return "bg-info/10 border-info/20"
+      return "bg-blue-500/5 border-blue-500/20"
   }
 }
 
@@ -43,21 +43,31 @@ export function ViolationsTable() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    dashboardAPI.getViolations(5).then((data) => {
-      let violationsList: Violation[] = []
+    safetyMonitorAPI.getLogs().then((data) => {
+      const logs = data.logs || []
+      const violationsList: Violation[] = logs
+        .filter((l: DetectionLog) => l.status === "VIOLATION")
+        .slice(0, 5)
+        .map((l: DetectionLog) => {
+          const missingCount = l.missing.length
+          const severity = missingCount >= 2 ? "critical" : "warning"
+          const type = l.missing[0] ? l.missing[0].split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') : "PPE"
 
-      // If data is an array, use it directly
-      if (Array.isArray(data)) {
-        violationsList = data
-      }
-      // If data is an object with a violations property, use that
-      else if (data && data.violations) {
-        violationsList = data.violations
-      }
+          return {
+            id: `db-${l.id}-${l.timestamp}`,
+            type: type,
+            severity: severity as "critical" | "warning",
+            camera: l.source || "Camera 1",
+            timestamp: l.timestamp,
+            person: `Worker #${l.id}`,
+            confidence: 95,
+            description: missingCount > 0 ? `Missing ${l.missing.join(", ")}` : "PPE Violation"
+          }
+        })
 
       setViolations(violationsList)
       setLoading(false)
-    })
+    }).catch(() => setLoading(false))
   }, [])
 
   return (

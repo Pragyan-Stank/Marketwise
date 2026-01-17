@@ -19,11 +19,16 @@ class CameraConfig(BaseModel):
     type: str # 'webcam' or 'ip'
     zone: str = "General"
 
-# --- GLOBAL VARIABLES ---
-monitor = None
+# --- GLOBAL STATE ---
+monitor = SafetyMonitor()
 OUTPUT_DIR = "static"
-ACTIVE_CAMERAS = {} # id -> cv2.VideoCapture
-CAMERA_METADATA = [] # List of CameraConfig
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+DETECTION_LOGS_LIMIT = 500
+detection_logs = []
+ACTIVE_CAMERAS = {}      # cam_id -> cv2.VideoCapture
+CAMERA_METADATA = []     # list of CameraConfig
+LAST_LOG_TIME = {}       # (source, person_id) -> timestamp
+LOG_COOLDOWN_SECONDS = 10 # Only log same person/violation once every 10s
 
 # --- LIFESPAN MANAGER ---
 @asynccontextmanager
@@ -120,9 +125,6 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Create templates directory if it doesn't exist
 os.makedirs("templates", exist_ok=True)
-
-# Global Log Storage for Live Feed
-detection_logs = []
 
 # --- DATA MODELS ---
 class ThresholdSettings(BaseModel):
@@ -330,17 +332,35 @@ def generate_frames(cam_id: str):
             # 3. Live Inference
             annotated_frame, data = monitor.process_frame(frame)
             
-            # 4. Update Logs 
+            # 4. Filter and Update Logs with cooldown
+            filtered_data = []
+            now = time.time()
             if data:
-                detection_logs.extend(data)
-                if len(detection_logs) > 50: detection_logs.pop(0)
-                
-                # PERSIST TO DATABASE
-                try:
-                    with next(get_db()) as db:
-                        save_logs(db, data, source=cam_name)
-                except Exception as db_err:
-                    print(f"Stats DB Error: {db_err}")
+                for entry in data:
+                    person_id = entry.get("id")
+                    key = (cam_name, person_id)
+                    
+                    # Only log if it's a violation AND outside cooldown
+                    if entry.get("status") == "VIOLATION":
+                         last_time = LAST_LOG_TIME.get(key, 0)
+                         if now - last_time > LOG_COOLDOWN_SECONDS:
+                             filtered_data.append(entry)
+                             LAST_LOG_TIME[key] = now
+                    else:
+                        # SAFE logs are less noisy, but maybe we don't even need them in DB?
+                        # For now, let's keep them transient in memory only
+                        pass
+
+                if filtered_data:
+                    detection_logs.extend(filtered_data)
+                    if len(detection_logs) > 50: detection_logs.pop(0)
+                    
+                    # PERSIST TO DATABASE
+                    try:
+                        with next(get_db()) as db:
+                            save_logs(db, filtered_data, source=cam_name)
+                    except Exception as db_err:
+                        print(f"Stats DB Error: {db_err}")
 
             # 5. Encode & Stream
             ret, buffer = cv2.imencode('.jpg', annotated_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
@@ -385,13 +405,14 @@ async def analyze_video(
     
     end_ms = end_time * 1000 if end_time is not None else video_duration_ms
     
-    # Force 720p for faster processing
-    target_width, target_height = 1280, 720
+    # Use original dimensions
+    orig_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    orig_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     
     # CHANGE: Use 'vp80' (VP8) - Faster & better compatibility than VP9
     try:
         fourcc = cv2.VideoWriter_fourcc(*'vp80')
-        out = cv2.VideoWriter(output_path, fourcc, fps, (target_width, target_height))
+        out = cv2.VideoWriter(output_path, fourcc, fps, (orig_width, orig_height))
         
         # Critical Check: Did the writer actually open?
         if not out.isOpened():
@@ -399,7 +420,7 @@ async def analyze_video(
             output_filename = f"processed_{int(time.time())}.mp4"
             output_path = f"{OUTPUT_DIR}/{output_filename}"
             fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            out = cv2.VideoWriter(output_path, fourcc, fps, (target_width, target_height))
+            out = cv2.VideoWriter(output_path, fourcc, fps, (orig_width, orig_height))
             
     except Exception as e:
         print(f"[ERROR] Video Writer Error: {e}")
@@ -421,9 +442,6 @@ async def analyze_video(
 
         ret, frame = cap.read()
         if not ret: break
-        
-        # Resize for speed
-        frame = cv2.resize(frame, (target_width, target_height))
         
         annotated_frame, data = monitor.process_frame(frame)
         
