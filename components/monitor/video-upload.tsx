@@ -43,7 +43,7 @@ export function VideoUpload() {
         }
     }
 
-    const handleUpload = async (start: number = 0, end?: number) => {
+    const handleUpload = async (start: number = 0, end?: number, requiredGear?: string[]) => {
         if (!selectedFile) return
 
         setIsUploading(true)
@@ -61,7 +61,7 @@ export function VideoUpload() {
         }, 150)
 
         try {
-            const result = await safetyMonitorAPI.analyzeVideo(selectedFile, start, end)
+            const result = await safetyMonitorAPI.analyzeVideo(selectedFile, start, end, requiredGear)
             setUploadProgress(100)
             setAnalysisResult(result)
         } catch (err) {
@@ -147,7 +147,7 @@ export function VideoUpload() {
                     {selectedFile && isTrimming && (
                         <VideoTrimmer
                             file={selectedFile}
-                            onTrim={(start, end) => handleUpload(start, end)}
+                            onTrim={(start, end, gear) => handleUpload(start, end, gear)}
                             onCancel={handleClear}
                         />
                     )}

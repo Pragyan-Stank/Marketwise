@@ -10,12 +10,25 @@ import {
     Check,
     RotateCcw,
     SkipBack,
-    SkipForward
+    SkipForward,
+    Shield,
+    Hand,
+    Shirt,
+    Glasses,
+    HardHat
 } from "lucide-react"
+
+const GEAR_ITEMS = [
+    { id: "mask", label: "Face Mask", icon: Shield, description: "N95/Surgical Mask" },
+    { id: "gloves", label: "Hand Gloves", icon: Hand, description: "Protective Gloves" },
+    { id: "coverall", label: "Safety Coverall", icon: Shirt, description: "Full Body Coverall" },
+    { id: "goggles", label: "Safety Goggles", icon: Glasses, description: "Protective Goggles" },
+    { id: "face_shield", label: "Face Shield", icon: HardHat, description: "Full Face Shield" },
+]
 
 interface VideoTrimmerProps {
     file: File
-    onTrim: (startTime: number, endTime: number) => void
+    onTrim: (startTime: number, endTime: number, requiredGear: string[]) => void
     onCancel: () => void
 }
 
@@ -26,6 +39,7 @@ export function VideoTrimmer({ file, onTrim, onCancel }: VideoTrimmerProps) {
     const [currentTime, setCurrentTime] = useState(0)
     const [isPlaying, setIsPlaying] = useState(false)
     const [videoUrl, setVideoUrl] = useState<string>("")
+    const [selectedGear, setSelectedGear] = useState<string[]>(GEAR_ITEMS.map(g => g.id))
 
     useEffect(() => {
         const url = URL.createObjectURL(file)
@@ -158,7 +172,44 @@ export function VideoTrimmer({ file, onTrim, onCancel }: VideoTrimmerProps) {
                     </div>
                 </div>
 
+                <div className="space-y-3 pt-2">
+                    <div className="flex items-center gap-2 mb-2">
+                        <Shield className="w-4 h-4 text-primary" />
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Monitor Classes</h3>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                        {GEAR_ITEMS.map((gear) => {
+                            const Icon = gear.icon
+                            const isActive = selectedGear.includes(gear.id)
+                            return (
+                                <button
+                                    key={gear.id}
+                                    onClick={() => {
+                                        setSelectedGear(prev =>
+                                            prev.includes(gear.id)
+                                                ? prev.filter(id => id !== gear.id)
+                                                : [...prev, gear.id]
+                                        )
+                                    }}
+                                    className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all ${isActive
+                                        ? "bg-primary/10 border-primary/30"
+                                        : "bg-white/5 border-white/5 hover:bg-white/10"
+                                        }`}
+                                >
+                                    <div className={`p-1.5 rounded-lg ${isActive ? "bg-primary/20" : "bg-white/5"}`}>
+                                        <Icon className={`w-3.5 h-3.5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
+                                    </div>
+                                    <span className={`text-xs font-semibold ${isActive ? "text-white" : "text-muted-foreground"}`}>
+                                        {gear.label}
+                                    </span>
+                                </button>
+                            )
+                        })}
+                    </div>
+                </div>
+
                 <div className="flex gap-3 mt-4">
+
                     <Button
                         variant="ghost"
                         onClick={onCancel}
@@ -168,7 +219,7 @@ export function VideoTrimmer({ file, onTrim, onCancel }: VideoTrimmerProps) {
                         Cancel
                     </Button>
                     <Button
-                        onClick={() => onTrim(range[0], range[1])}
+                        onClick={() => onTrim(range[0], range[1], selectedGear)}
                         className="flex-[2] bg-primary hover:bg-primary/90 text-white rounded-xl h-11 font-bold text-xs uppercase tracking-widest shadow-lg shadow-primary/20"
                     >
                         <Check className="w-4 h-4 mr-2" />

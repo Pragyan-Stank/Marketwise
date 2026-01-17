@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001"
 
 // ============================================================================
 // CORE API REQUEST HELPER
@@ -93,14 +93,11 @@ function getMockData(endpoint: string): any {
     return allViolations.slice(0, limit)
   }
 
-  if (endpoint === "/api/monitor/cameras") {
+  if (endpoint === "/api/monitor/cameras" || endpoint === "/api/cameras") {
     return [
-      { id: "cam1", name: "Warehouse Entrance", location: "Main Gate", online: true, violations: 0 },
-      { id: "cam2", name: "Assembly Line A", location: "Floor 1", online: true, violations: 2 },
-      { id: "cam3", name: "Assembly Line B", location: "Floor 1", online: true, violations: 1 },
-      { id: "cam4", name: "Loading Dock", location: "Yard", online: false, violations: 0 },
-      { id: "cam5", name: "Storage Area", location: "Floor 2", online: true, violations: 3 },
-      { id: "cam6", name: "Maintenance Shop", location: "Floor 3", online: true, violations: 0 },
+      { id: "cam1", name: "Warehouse Entrance", location: "Main Gate", online: true, violations: 0, zone: "General", source: "0", type: "webcam" },
+      { id: "cam2", name: "Assembly Line A", location: "Floor 1", online: true, violations: 2, zone: "General", source: "1", type: "webcam" },
+      { id: "cam3", name: "Assembly Line B", location: "Floor 1", online: true, violations: 1, zone: "Production", source: "2", type: "webcam" },
     ]
   }
 
@@ -228,24 +225,12 @@ function getMockData(endpoint: string): any {
   }
 
   if (endpoint === "/api/videos/history") {
-    return {
-      history: [
-        {
-          filename: "processed_1705432000.webm",
-          url: "/processed_1705432000.webm",
-          timestamp: 1705432000,
-          violations: 12,
-          total_detections: 145,
-        },
-        {
-          filename: "processed_1705421000.mp4",
-          url: "/processed_1705421000.mp4",
-          timestamp: 1705421000,
-          violations: 3,
-          total_detections: 89,
-        }
-      ]
-    }
+    return { history: [] }
+  }
+
+  // Fallback structures to prevent .map() crashes
+  if (endpoint.includes("history") || endpoint.includes("activity") || endpoint.includes("trend") || endpoint.includes("cameras") || endpoint.includes("logs")) {
+    return endpoint.includes("history") || endpoint.includes("logs") ? { logs: [], history: [] } : []
   }
 
   return {}
@@ -340,12 +325,15 @@ export const safetyMonitorAPI = {
     apiRequest<{ status: string }>(`/api/cameras/${id}`, { method: "DELETE" }),
 
   // --- Video Upload & Analysis ---
-  analyzeVideo: async (file: File, startTime: number = 0, endTime?: number): Promise<VideoAnalysisResult> => {
+  analyzeVideo: async (file: File, startTime: number = 0, endTime?: number, requiredGear?: string[]): Promise<VideoAnalysisResult> => {
     const formData = new FormData()
     formData.append("file", file)
     formData.append("start_time", startTime.toString())
     if (endTime !== undefined) {
       formData.append("end_time", endTime.toString())
+    }
+    if (requiredGear && requiredGear.length > 0) {
+      formData.append("required_gear", JSON.stringify(requiredGear))
     }
 
     try {

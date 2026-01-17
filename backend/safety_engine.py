@@ -33,7 +33,7 @@ class SafetyMonitor:
         
         # INTERNAL SENSITIVITY OVERRIDES
         self.CLASS_SPECIFIC_THRESHOLDS = {
-            'Coverall': 0.2,
+            'Coverall': 0.1,
             'Face_Shield': 0.6,
             'Gloves': 0.4,
             'Goggles': 0.50,
@@ -95,7 +95,7 @@ class SafetyMonitor:
                     return True
         return False
 
-    def process_frame(self, frame):
+    def process_frame(self, frame, override_requirements=None):
         # 1. IDLE STATE
         if not self.is_active:
             return frame, []
@@ -157,15 +157,18 @@ class SafetyMonitor:
                 }
 
         # --- ALWAYS RUN COMPLIANCE CHECK (Even on skipped frames) ---
-        visuals, persons_data = self.compute_compliance(self.last_pose_data, self.last_equip_data)
+        visuals, persons_data = self.compute_compliance(self.last_pose_data, self.last_equip_data, override_requirements)
         
         annotated_frame = self.draw_visuals(annotated_frame, visuals)
         return annotated_frame, persons_data
 
-    def compute_compliance(self, pose_data, equip_data):
+    def compute_compliance(self, pose_data, equip_data, override_requirements=None):
         """Re-evaluates compliance logic based on inputs and CURRENT settings"""
         current_visuals = []
         persons_data = []
+
+        # Use overrides if provided, otherwise use global setting
+        target_requirements = set(override_requirements) if override_requirements is not None else self.REQUIRED_GEAR
 
         if pose_data:
             ids = pose_data['ids']
@@ -187,8 +190,8 @@ class SafetyMonitor:
                                 person_gear.add(simple_name)
                                 current_visuals.append({'type': 'rect', 'coords': e_bbox, 'color': (0, 255, 0), 'text': e_name})
 
-                # Compliance Check against current self.REQUIRED_GEAR
-                missing = self.REQUIRED_GEAR - person_gear
+                # Compliance Check against current target_requirements
+                missing = target_requirements - person_gear
                 status = "VIOLATION" if missing else "COMPLIANT"
                 color = (0, 0, 255) if status == "VIOLATION" else (0, 255, 0)
                 
@@ -210,7 +213,7 @@ class SafetyMonitor:
         font = cv2.FONT_HERSHEY_DUPLEX # Slightly cleaner than SIMPLEX
         font_scale = 0.7             # Smaller, cleaner text
         font_thickness = 1             # Thin text font
-        box_thickness = 1.5            # Thinner bounding box lines
+        box_thickness = 2            # Thinner bounding box lines
 
         for item in visuals:
             x1, y1, x2, y2 = map(int, item['coords'])

@@ -8,6 +8,7 @@ import cv2
 import time
 import os
 import shutil
+import json
 from pydantic import BaseModel
 from safety_engine import SafetyMonitor
 
@@ -178,6 +179,41 @@ async def get_gear_settings():
     if monitor:
         return {"requirements": list(monitor.REQUIRED_GEAR)}
     return {"requirements": []}
+
+# --- DASHBOARD API ---
+@app.get("/api/dashboard/summary")
+async def get_dashboard_summary():
+    # Reuse existing stats logic
+    recent_logs = detection_logs[-50:]
+    violations = len([d for d in recent_logs if d['status'] == 'VIOLATION'])
+    total = len(recent_logs)
+    compliance = ((total - violations) / total) * 100 if total > 0 else 100
+    
+    return {
+        "activeViolations": violations,
+        "camerasOnline": len(ACTIVE_CAMERAS),
+        "complianceScore": round(compliance, 1),
+        "averageResponseTime": 1.2 # Placeholder
+    }
+
+@app.get("/api/dashboard/violations")
+async def get_dashboard_violations(limit: int = 5):
+    # Filter logs for violations
+    v_logs = [l for l in detection_logs if l.get('status') == 'VIOLATION'][::-1]
+    return v_logs[:limit]
+
+@app.get("/api/dashboard/system-status")
+async def get_dashboard_system_status():
+    return {
+        "status": "online",
+        "monitor_active": monitor.is_active if monitor else False,
+        "gpu_available": torch.cuda.is_available(),
+        "storage_usage": "2.4GB" # Placeholder
+    }
+
+@app.get("/api/dashboard/activity")
+async def get_dashboard_activity(limit: int = 4):
+    return detection_logs[::-1][:limit]
 
 from database import engine, Base, get_db
 from models import Log
@@ -382,8 +418,18 @@ from fastapi import Form
 async def analyze_video(
     file: UploadFile = File(...),
     start_time: float = Form(0.0),
-    end_time: float = Form(None)
+    end_time: float = Form(None),
+    required_gear: str = Form(None)
 ):
+    # Parse required gear if provided
+    active_requirements = None
+    if required_gear:
+        try:
+            active_requirements = json.loads(required_gear)
+        except:
+            # Fallback to comma-separated if not valid JSON
+            active_requirements = [g.strip().lower() for g in required_gear.split(",")]
+    
     # 1. Save Uploaded File
     temp_input = f"{OUTPUT_DIR}/temp_input.mp4"
     
@@ -443,7 +489,7 @@ async def analyze_video(
         ret, frame = cap.read()
         if not ret: break
         
-        annotated_frame, data = monitor.process_frame(frame)
+        annotated_frame, data = monitor.process_frame(frame, override_requirements=active_requirements)
         
         # Save first frame as thumbnail
         if frame_count == 0:
@@ -515,7 +561,7 @@ async def get_video_history(db: Session = Depends(get_db)):
 async def health_check():
     return {
         "status": "healthy",
-        "camera": camera is not None and camera.isOpened(),
+        "cameras_active": len(ACTIVE_CAMERAS),
         "monitor": monitor is not None
     }
 
@@ -548,4 +594,4 @@ async def read_root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)

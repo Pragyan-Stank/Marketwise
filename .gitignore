@@ -2,8 +2,7 @@
 
 # dependencies
 /node_modules
-/static/
-
+/backend/static
 # next.js
 /.next/
 /out/
