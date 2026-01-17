@@ -11,19 +11,19 @@
 
 ### Landing Page
 > The entry point for the Marketwise platform.
-![Landing Page](./public/Screenshot%202026-01-17%20122008.png)
+![Landing Page](Screenshot%202026-01-17%20122008.png)
 
 ### Operations Dashboard
 > Comprehensive view of safety compliance scores, active cameras, and violation trends.
-![Dashboard](./public/Screenshot%202026-01-17%20122026.png)
+![Dashboard](Screenshot%202026-01-17%20122026.png)
 
 ### Real-Time Monitoring
 > Live inference feed detecting PPE (Helmets/Vests) with low-latency bounding boxes.
-![Live Streaming](./public/Screenshot%202026-01-17%20122130.png)
+![Live Streaming](Screenshot%202026-01-17%20122130.png)
 
 ### Processed Recordings & History
 > Review historical footage and detected violation snapshots.
-![Processed Recordings](./public/Screenshot%202026-01-17%20122142.png)
+![Processed Recordings](Screenshot%202026-01-17%20122142.png)
 
 ---
 
@@ -80,4 +80,6 @@ Marketwise/
 │   ├── analytics/        # Charts (Compliance Score, Trends)
 │   ├── monitor/          # Video Players & PPE Checklists
 │   └── logs/             # Data Tables
-└── public/               # Static Assets & Screenshots
+├── public/               # Static Assets
+├── Screenshot...png      # Project Screenshots
+└── README.md
